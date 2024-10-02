@@ -2,6 +2,8 @@
 using Store.Data.Entities;
 using Store.Repository.Interfaces;
 using Store.Repository.Repositories;
+using Store.Repository.Specification.ProductSpecs;
+using Store.Service.Helper;
 using Store.Service.Services.ProductService.Dtos;
 using System;
 using System.Collections.Generic;
@@ -36,9 +38,17 @@ namespace Store.Service.Services.ProductService
             return mappedBrands;
         }
 
-        public async Task<IReadOnlyList<ProductDetailsDto>> GetAllProductAsync()
+        public async Task<PaginatedResultDto<ProductDetailsDto>> GetAllProductAsync(ProductSpecificatiom input)
+
         {
-            var products = await _unitOfWork.Repository<ProductEntity, int>().GetAllAsNoTrackingAsync();
+            var specs = new ProductWithSpecification(input);
+            var products = await _unitOfWork.Repository<ProductEntity, int>().GetAllWithSpecificationAsync(specs);
+            var countSpecs = new ProductWithCountSpecification(input);
+            var count = await _unitOfWork.Repository<ProductEntity, int>().GetCountSpecificationAsync(countSpecs);
+            var mappedProducts = _mapper.Map<IReadOnlyList<ProductDetailsDto>>(products);
+
+            return new PaginatedResultDto<ProductDetailsDto>(input.PageSize , input.PageIndex, count, mappedProducts) ;
+
             //var mappedProducts = products.Select(x => new ProductDetailsDto
             //{
             //    Id = x.Id,
@@ -50,8 +60,7 @@ namespace Store.Service.Services.ProductService
             //    BrandName = x.Brand.Name,
             //    TypeName = x.Type.Name
             //}).ToList();
-            var mappedProducts = _mapper.Map<IReadOnlyList<ProductDetailsDto>>(products);
-            return mappedProducts;
+
         }
         public async Task<IReadOnlyList<BrandTypeDto>> GetAllTypesAsync()
         {
@@ -70,7 +79,8 @@ namespace Store.Service.Services.ProductService
         {
             if (productId is null)
                 throw new Exception("Id Is Null");
-            var product = await _unitOfWork.Repository<ProductEntity, int>().GetByIdAsync(productId.Value);
+            var specs = new ProductWithSpecification(productId);
+            var product = await _unitOfWork.Repository<ProductEntity, int>().GetWithSpecificationByIdAsync(specs);
             if (product is null)
                 throw new Exception("product Is Null");
             //var mappedProduct = new ProductDetailsDto
